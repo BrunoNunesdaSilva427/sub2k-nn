@@ -78,7 +78,25 @@ def export_c_header(path, W1_q, b1_q, W2_q, b2_q, input_size, hidden_units, num_
             f.write("  { " + ", ".join(str(int(v)) for v in row) + " },\n")
         f.write("};\n\n")
 
-        f.write(f"const int32_t NN_B1[NN_HIDDEN_SIZE] PROGMEM = {{\n  ")
+        b1_min, b1_max = int(b1_q.min()), int(b1_q.max())
+        if not (-128 <= b1_min and b1_max <= 127):
+            raise ValueError(
+                f"NN_B1 fora da faixa de int8_t ({b1_min}..{b1_max}). "
+                "Ajuste NN_B1 para int16_t/int32_t no nn_table.h E troque o "
+                "pgm_read_byte(&NN_B1[j]) por pgm_read_word/pgm_read_dword "
+                "(com o cast correspondente) no sub2k_nn.ino antes de gravar o firmware."
+            )
+
+        b2_min, b2_max = int(b2_q.min()), int(b2_q.max())
+        if not (-32768 <= b2_min and b2_max <= 32767):
+            raise ValueError(
+                f"NN_B2 fora da faixa de int16_t ({b2_min}..{b2_max}). "
+                "Ajuste NN_B2 para int32_t no nn_table.h E troque o "
+                "pgm_read_word(&NN_B2[k]) por pgm_read_dword (com o cast "
+                "correspondente) no sub2k_nn.ino antes de gravar o firmware."
+            )
+
+        f.write(f"const int8_t NN_B1[NN_HIDDEN_SIZE] PROGMEM = {{\n  ")
         f.write(", ".join(str(int(v)) for v in b1_q))
         f.write("\n};\n\n")
 
@@ -87,11 +105,13 @@ def export_c_header(path, W1_q, b1_q, W2_q, b2_q, input_size, hidden_units, num_
             f.write("  { " + ", ".join(str(int(v)) for v in row) + " },\n")
         f.write("};\n\n")
 
-        f.write(f"const int32_t NN_B2[NN_NUM_CLASSES] PROGMEM = {{\n  ")
+        f.write(f"const int16_t NN_B2[NN_NUM_CLASSES] PROGMEM = {{\n  ")
         f.write(", ".join(str(int(v)) for v in b2_q))
         f.write("\n};\n")
 
-    total_bytes = W1_q.nbytes + b1_q.nbytes + W2_q.nbytes + b2_q.nbytes
+    b1_bytes = b1_q.size * 1   
+    b2_bytes = b2_q.size * 2   
+    total_bytes = W1_q.nbytes + b1_bytes + W2_q.nbytes + b2_bytes
     print(f"[export] header C escrito em {path} ({total_bytes} bytes de tabela, "
           f"{total_bytes/1024:.2f} KB)")
 
