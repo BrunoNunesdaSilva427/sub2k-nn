@@ -1,6 +1,6 @@
 # sub2k-nn
 
-**Reconhecimento de dígitos manuscritos com uma rede neural quantizada (int8) rodando dentro de um Arduino Uno (2KB de RAM) — 96,7% de acurácia, 1,26KB de flash, sem nenhuma biblioteca de ML no firmware.**
+**Reconhecimento de dígitos manuscritos com uma rede neural quantizada (int8) rodando dentro de um Arduino Uno (2KB de RAM) — 96,7% de acurácia, 1,19KB de flash, ~18,5% de RAM usada, sem nenhuma biblioteca de ML no firmware.**
 
 O problema que isso resolve: rodar uma rede neural "de verdade" num microcontrolador de 8 bits normalmente significa depender de frameworks pesados (TensorFlow Lite Micro, uTensor) ou aceitar que ponto flutuante vai comer a RAM escassa. O `sub2k-nn` treina a rede inteira em Python/float, quantiza os pesos pra `int8` uma única vez, e o firmware só faz multiplicação e soma em inteiros contra uma tabela fixa em `PROGMEM` — sem `float`, sem framework, sem alocação dinâmica.
 
@@ -22,7 +22,7 @@ Faz parte da mesma série de experimentos de restrição extrema em hardware do 
 | Oculta | 16 | `ReLU(entrada @ W1 + b1)` |
 | Saída | 10 | `entrada_oculta @ W2 + b2`, uma pontuação por dígito (0-9) |
 
-A camada oculta e a de saída somam **1.184 pesos + 26 biases**, quantizados em `int8`/`int32` — a tabela inteira cabe em 1,26KB de flash.
+A camada oculta e a de saída somam **1.184 pesos** (quantizados em `int8_t`) **+ 26 biases** (`int8_t` na camada oculta, `int16_t` na de saída — cada bias usa o menor tipo que cabe nos valores reais do treino) — a tabela inteira cabe em **1,19KB de flash**.
 
 ## Arquitetura (treino no PC, inferência no Uno)
 
@@ -46,8 +46,9 @@ O treino roda uma vez (ou toda vez que o dataset mudar); a inferência no Uno é
 | Acurácia do modelo em float (referência) | 96,4% |
 | Acurácia do modelo quantizado (int8, aritmética inteira) | **96,7%** |
 | Perda de acurácia por causa da quantização | **-0,3 pp** (na prática, nula) |
-| Tamanho da tabela de pesos em flash | **1,26 KB** |
-| RAM usada em runtime (ativações) | ~80 bytes (16 acumuladores int32 + buffer de entrada) |
+| Tamanho da tabela de pesos em flash | **1.220 bytes (1,19 KB)** — biases em `int8_t`/`int16_t` em vez de `int32_t` |
+| RAM livre em runtime, medida com `freeMemory()` no hardware real | **1.669 B livres de 2.048 B totais (~18,5% usado, mais de 80% livre)** |
+| Tempo de inferência isolado, medido com `micros()` no hardware real | **~4,87 ms** por predição |
 | Margem de segurança contra overflow do acumulador int32 | 8,1x abaixo do limite |
 
 A quantização não custou quase nada de acurácia — e a matriz de confusão mostra só um padrão de erro sistemático: o dígito **8 sendo confundido com 1** em 3 de 360 amostras de teste, um erro plausível mesmo pra um classificador maior, já que certas caligrafias de "8" ficam visualmente parecidas com "1" numa grade de só 8×8 pixels.
@@ -131,6 +132,7 @@ sub2k-nn/
 - [x] Matriz de confusão e checagem formal de overflow do acumulador
 - [x] Firmware `.ino` com framing de protocolo (sync byte + checksum), alinhado com sub2k-face e sub2k-kws
 - [x] Teste ponta-a-ponta com hardware real via `predict_live.py`
+- [x] Biases otimizados pra `int8_t`/`int16_t` (em vez de `int32_t`), com checagem de faixa no `train_nn.py` — economia de ~70 bytes de flash sem custo de RAM, velocidade ou acurácia
 - [ ] Rejeição por threshold de confiança (hoje sempre retorna o argmax, mesmo com score baixo)
 
 ## O "trio" de técnicas de classificação sob 2KB
@@ -139,7 +141,7 @@ sub2k-nn/
 |---|---|---|---|---|
 | [`sub2k-intent`](../sub2k-intent) | Hashing de trigramas | Texto | ~1,5KB de flash pra 47 frases | 88% (15/17 no teste com casos difíceis) |
 | [`sub2k-face`](../sub2k-face) | Projeção linear (PCA/Eigenfaces) | Imagem | ~44 bytes por identidade cadastrada | 100% em dados sintéticos validados; fotos reais ainda pendentes |
-| **`sub2k-nn`** | Rede neural (MLP 2 camadas) | Imagem | **1,26KB** pra 64→16→10 | **96,7%** em dataset real |
+| **`sub2k-nn`** | Rede neural (MLP 2 camadas) | Imagem | **1,19KB** pra 64→16→10 | **96,7%** em dataset real |
 
 O `sub2k-nn` é o mais "clássico" das três abordagens (é literalmente uma rede neural, só que pequena e quantizada), e também o único treinado e validado inteiramente sobre dados reais (não sintéticos) desde o início.
 
