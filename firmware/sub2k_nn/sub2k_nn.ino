@@ -5,6 +5,13 @@
 #define SYNC_BYTE 0xAA
 #define SERIAL_TIMEOUT_MS 2000
 
+
+extern int __heap_start, *__brkval;
+int freeMemory() {
+  int v;
+  return (int) &v - (__brkval == 0 ? (int) &__heap_start : (int) __brkval);
+}
+
 void setup() {
   Serial.begin(9600);
   Serial.setTimeout(SERIAL_TIMEOUT_MS);
@@ -16,6 +23,8 @@ void setup() {
   Serial.print(F(" ocultos, "));
   Serial.print(NN_NUM_CLASSES);
   Serial.println(F(" classes."));
+  Serial.print(F("RAM livre no boot: "));
+  Serial.println(freeMemory());
 }
 
 
@@ -24,7 +33,7 @@ int8_t infer(const uint8_t* pixels, int32_t* outScores) {
 
   
   for (uint8_t j = 0; j < NN_HIDDEN_SIZE; j++) {
-    int32_t acc = (int32_t)pgm_read_dword(&NN_B1[j]);
+    int32_t acc = (int32_t)(int8_t)pgm_read_byte(&NN_B1[j]);
     for (uint8_t i = 0; i < NN_INPUT_SIZE; i++) {
       int8_t w = (int8_t)pgm_read_byte(&NN_W1[i][j]);
       acc += (int32_t)pixels[i] * w;
@@ -36,7 +45,7 @@ int8_t infer(const uint8_t* pixels, int32_t* outScores) {
   int8_t bestClass = 0;
   int32_t bestScore = -2147483647L;
   for (uint8_t k = 0; k < NN_NUM_CLASSES; k++) {
-    int32_t acc = (int32_t)pgm_read_dword(&NN_B2[k]);
+    int32_t acc = (int32_t)(int16_t)pgm_read_word(&NN_B2[k]);
     for (uint8_t j = 0; j < NN_HIDDEN_SIZE; j++) {
       int8_t w = (int8_t)pgm_read_byte(&NN_W2[j][k]);
       acc += hidden[j] * w;
@@ -80,10 +89,17 @@ void loop() {
   }
 
   int32_t scores[NN_NUM_CLASSES];
+
+  unsigned long t0 = micros();
   int8_t pred = infer(pixels, scores);
+  unsigned long t1 = micros();
 
   Serial.print(F("PRED="));
   Serial.print(pred);
+  Serial.print(F(" RAM="));
+  Serial.print(freeMemory());
+  Serial.print(F(" COMPUTE_US="));
+  Serial.print(t1 - t0);
   Serial.print(F(" SCORES="));
   for (uint8_t k = 0; k < NN_NUM_CLASSES; k++) {
     Serial.print(scores[k]);
