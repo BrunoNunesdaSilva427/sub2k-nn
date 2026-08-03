@@ -1,4 +1,4 @@
-# sub2k-nn
+# sub2k-nn (Mais leve que TensorFlow Lite Micro)
 
 **Reconhecimento de dígitos manuscritos com uma rede neural quantizada (int8) rodando dentro de um Arduino Uno (2KB de RAM) - 96,7% de acurácia, 1,19KB de flash, ~18,5% de RAM usada, sem nenhuma biblioteca de ML no firmware.**
 
