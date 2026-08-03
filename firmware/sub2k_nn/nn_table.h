@@ -73,7 +73,7 @@ const int8_t NN_W1[NN_INPUT_SIZE][NN_HIDDEN_SIZE] PROGMEM = {
   { 0, 68, 124, 2, 27, -43, 85, 26, 0, -1, 17, 1, -45, 43, 0, 7 },
 };
 
-const int32_t NN_B1[NN_HIDDEN_SIZE] PROGMEM = {
+const int8_t NN_B1[NN_HIDDEN_SIZE] PROGMEM = {
   43, 9, 28, 56, -26, 28, -37, 30, -30, -52, -29, 14, 15, 2, -54, -23
 };
 
@@ -96,6 +96,6 @@ const int8_t NN_W2[NN_HIDDEN_SIZE][NN_NUM_CLASSES] PROGMEM = {
   { -53, 10, -29, 23, -23, 42, 30, 28, 23, -15 },
 };
 
-const int32_t NN_B2[NN_NUM_CLASSES] PROGMEM = {
+const int16_t NN_B2[NN_NUM_CLASSES] PROGMEM = {
   2194, -8784, -6918, -936, -303, 6463, 1550, -1571, -4905, 12465
 };
